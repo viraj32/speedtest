@@ -1,17 +1,22 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="si">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPEEDTEST - Signal & Speed Meter</title>
+  <title>SPEEDTEST - Custom Dashboard</title>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase Compatibility SDKs (v10.8.0) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     body {
@@ -22,7 +27,7 @@
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      padding: 20px;
+      padding: 15px;
     }
 
     header {
@@ -37,23 +42,25 @@
 
     .logo {
       font-weight: 900;
-      font-size: 20px;
+      font-size: 18px;
       letter-spacing: 2px;
-      background: linear-gradient(90deg, #00f2fe, #4facfe);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #38bdf8;
     }
 
     .auth-btn {
-      background: rgba(0, 242, 254, 0.1);
-      color: #00f2fe;
-      border: 1px solid #00f2fe;
+      background: transparent;
+      color: #38bdf8;
+      border: 1px solid #38bdf8;
       padding: 6px 14px;
-      border-radius: 20px;
+      border-radius: 15px;
       font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1px;
       cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .auth-btn:hover {
+      background: rgba(56, 189, 248, 0.1);
     }
 
     .main-container {
@@ -62,42 +69,51 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 10px 0;
     }
 
-    .metrics-grid {
+    .results-grid {
       width: 100%;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+      margin-top: 15px;
       margin-bottom: 12px;
     }
 
-    .metric-card {
+    .res-box {
       background: #141b2d;
       border: 1px solid #1e2d4a;
-      border-radius: 14px;
+      border-radius: 12px;
       padding: 12px;
-      text-align: center;
+      position: relative;
     }
 
-    .metric-title {
-      font-size: 10px;
-      color: #64748b;
+    .res-label {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       text-transform: uppercase;
       font-weight: 700;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
     }
 
-    .metric-value {
-      font-size: 20px;
+    .res-value {
+      font-size: 26px;
       font-weight: 800;
-      color: #f8fafc;
+      margin-top: 4px;
+      color: #38bdf8;
     }
 
-    .metric-value.highlight { color: #00f2fe; }
-    .metric-value.upload-color { color: #b877fe; }
+    .res-value.upload { color: #c084fc; }
+
+    .res-unit {
+      font-size: 10px;
+      color: #64748b;
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+    }
 
     .services-bar {
       width: 100%;
@@ -119,20 +135,20 @@
       color: #475569;
       font-size: 10px;
       font-weight: 700;
-      transition: all 0.3s ease;
+      transition: color 0.3s;
     }
 
     .app-icon-item i { font-size: 16px; }
 
     .app-icon-item.active {
-      color: #00f2fe;
-      text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
     }
 
     .gauge-wrapper {
       position: relative;
-      width: 220px;
-      height: 220px;
+      width: 230px;
+      height: 230px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -148,18 +164,17 @@
     .gauge-bg {
       fill: none;
       stroke: #1e293b;
-      stroke-width: 12;
+      stroke-width: 10;
     }
 
     .gauge-progress {
       fill: none;
-      stroke: url(#cyan-gradient);
-      stroke-width: 12;
+      stroke: #38bdf8;
+      stroke-width: 10;
       stroke-dasharray: 628;
       stroke-dashoffset: 628;
       stroke-linecap: round;
-      transition: stroke-dashoffset 0.1s ease;
-      filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));
+      transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
     }
 
     .gauge-content {
@@ -167,16 +182,16 @@
       text-align: center;
     }
 
-    .gauge-mode {
+    .gauge-status {
       font-size: 10px;
       font-weight: 800;
       color: #64748b;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       margin-bottom: 4px;
     }
 
     .speed-number {
-      font-size: 48px;
+      font-size: 46px;
       font-weight: 900;
       color: #ffffff;
       line-height: 1;
@@ -186,16 +201,47 @@
       font-size: 11px;
       color: #64748b;
       font-weight: 700;
-      letter-spacing: 2px;
       margin-top: 4px;
     }
 
-    .network-type-tag {
-      margin-top: 6px;
+    .network-tag {
+      margin-top: 8px;
       font-size: 13px;
       font-weight: 800;
-      color: #00f2fe;
-      letter-spacing: 1px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 3px 10px;
+      border-radius: 12px;
+      display: inline-block;
+    }
+
+    .info-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    .info-card {
+      background: #141b2d;
+      border: 1px solid #1e2d4a;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .info-title {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .info-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 2px;
     }
 
     .provider-container {
@@ -206,30 +252,30 @@
       background: #141b2d;
       border: 1px solid #1e2d4a;
       border-radius: 14px;
-      padding: 10px 14px;
+      padding: 12px 16px;
       margin-bottom: 15px;
     }
 
     .provider-box {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .provider-icon {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       background: #0b0e14;
       border-radius: 8px;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 12px;
-      color: #00f2fe;
+      font-size: 14px;
+      color: #38bdf8;
     }
 
     .provider-info h4 {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: #f8fafc;
     }
@@ -239,69 +285,58 @@
       color: #64748b;
     }
 
-    .connection-arrow {
-      color: #475569;
-      font-size: 12px;
-    }
-
     .go-btn {
       width: 100%;
-      background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+      background: #0284c7;
       color: #ffffff;
       border: none;
       padding: 16px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
-      border-radius: 30px;
+      border-radius: 28px;
       cursor: pointer;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      box-shadow: 0 8px 20px rgba(0, 114, 255, 0.4);
-    }
-
-    .go-btn:active { transform: scale(0.98); }
-
-    footer {
-      font-size: 10px;
-      color: #475569;
       letter-spacing: 1px;
     }
+
+    .go-btn:active { background: #0369a1; }
   </style>
 </head>
 <body>
 
   <header>
     <div class="logo">SPEEDTEST</div>
-    <button class="auth-btn">SIGN IN</button>
+    <button class="auth-btn" id="authBtn">SIGN IN</button>
   </header>
 
   <div class="main-container">
 
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-title">DOWNLOAD</div>
-        <div class="metric-value highlight" id="dlDisplay">-- Mbps</div>
+    <div class="results-grid">
+      <div class="res-box">
+        <div class="res-label"><i class="fa-solid fa-arrow-down"></i> Download</div>
+        <div class="res-value" id="dlDisplay">32.0</div>
+        <div class="res-unit">Mbps</div>
       </div>
-      <div class="metric-card">
-        <div class="metric-title">UPLOAD</div>
-        <div class="metric-value upload-color" id="ulDisplay">-- Mbps</div>
+      <div class="res-box">
+        <div class="res-label"><i class="fa-solid fa-arrow-up"></i> Upload</div>
+        <div class="res-value upload" id="ulDisplay">11.1</div>
+        <div class="res-unit">Mbps</div>
       </div>
     </div>
 
     <div class="services-bar">
-      <div class="app-icon-item" id="iconWeb">
+      <div class="app-icon-item active" id="iconWeb">
         <i class="fa-solid fa-globe"></i>
         <span>WEB</span>
       </div>
-      <div class="app-icon-item" id="iconGame">
+      <div class="app-icon-item active" id="iconGame">
         <i class="fa-solid fa-gamepad"></i>
         <span>GAMING</span>
       </div>
-      <div class="app-icon-item" id="iconVideo">
+      <div class="app-icon-item active" id="iconVideo">
         <i class="fa-solid fa-play"></i>
         <span>VIDEO</span>
       </div>
-      <div class="app-icon-item" id="iconCall">
+      <div class="app-icon-item active" id="iconCall">
         <i class="fa-solid fa-user-group"></i>
         <span>CALL</span>
       </div>
@@ -309,35 +344,25 @@
 
     <div class="gauge-wrapper">
       <svg class="gauge-svg" viewBox="0 0 220 220">
-        <defs>
-          <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#00f2fe" />
-            <stop offset="100%" stop-color="#4facfe" />
-          </linearGradient>
-          <linearGradient id="purple-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#b877fe" />
-            <stop offset="100%" stop-color="#764ba2" />
-          </linearGradient>
-        </defs>
         <circle class="gauge-bg" cx="110" cy="110" r="100"></circle>
         <circle class="gauge-progress" id="progressCircle" cx="110" cy="110" r="100"></circle>
       </svg>
       <div class="gauge-content">
-        <div class="gauge-mode" id="gaugeMode">READY</div>
-        <div class="speed-number" id="speedDisplay">0.0</div>
+        <div class="gauge-status" id="gaugeStatus">TEST COMPLETE</div>
+        <div class="speed-number" id="speedDisplay">32.0</div>
         <div class="speed-unit">MBPS</div>
-        <div class="network-type-tag" id="networkTag">FETCHING...</div>
+        <div class="network-tag" id="networkTag">4G LTE 📡</div>
       </div>
     </div>
 
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-title">PING</div>
-        <div class="metric-value" id="pingDisplay">-- ms</div>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-title">PING</div>
+        <div class="info-val" id="pingVal">15 ms</div>
       </div>
-      <div class="metric-card">
-        <div class="metric-title">NETWORK TIER</div>
-        <div class="metric-value" id="tierDisplay">--</div>
+      <div class="info-card">
+        <div class="info-title">NETWORK TIER</div>
+        <div class="info-val" id="tierVal">4G LTE</div>
       </div>
     </div>
 
@@ -350,7 +375,7 @@
         </div>
       </div>
 
-      <i class="fa-solid fa-arrow-right-arrow-left connection-arrow"></i>
+      <i class="fa-solid fa-arrow-right-arrow-left" style="color: #475569; font-size: 12px;"></i>
 
       <div class="provider-box">
         <div class="provider-icon"><i class="fa-solid fa-server"></i></div>
@@ -361,124 +386,165 @@
       </div>
     </div>
 
-    <button class="go-btn" id="startBtn" onclick="startFullTest()">START TEST</button>
+    <button class="go-btn" id="startBtn" onclick="startTest()">TEST AGAIN</button>
   </div>
 
-  <footer>NETWORK SIGNAL ANALYZER</footer>
-
   <script>
+    // --- EXACT FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBcranrELwrcis3s933kNo_UORe5ssIn2o",
+      authDomain: "speedtest-app-e7c4f.firebaseapp.com",
+      projectId: "speedtest-app-e7c4f",
+      storageBucket: "speedtest-app-e7c4f.firebasestorage.app",
+      messagingSenderId: "626295808027",
+      appId: "1:626295808027:web:c17e00f26a4850648ad8be",
+      measurementId: "G-3MM21KGYWL"
+    };
+
+    // Firebase Initialize
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    // Sign In / Sign Out Authentication Setup
+    document.addEventListener("DOMContentLoaded", () => {
+      const authBtn = document.getElementById('authBtn');
+
+      if (authBtn) {
+        authBtn.addEventListener('click', () => {
+          if (auth.currentUser) {
+            auth.signOut().then(() => {
+              authBtn.textContent = "SIGN IN";
+              alert("Signed out successfully!");
+            }).catch((error) => {
+              console.error("Sign-out Error:", error);
+            });
+          } else {
+            auth.signInWithPopup(provider)
+              .then((result) => {
+                const user = result.user;
+                const firstName = user.displayName ? user.displayName.split(' ')[0].toUpperCase() : 'USER';
+                authBtn.textContent = firstName;
+              })
+              .catch((error) => {
+                console.error("Auth Error:", error);
+                alert("Sign in error: " + error.message);
+              });
+          }
+        });
+      }
+
+      // Preserve logged in state across refresh
+      auth.onAuthStateChanged((user) => {
+        if (user && authBtn) {
+          const firstName = user.displayName ? user.displayName.split(' ')[0].toUpperCase() : 'USER';
+          authBtn.textContent = firstName;
+        } else if (authBtn) {
+          authBtn.textContent = "SIGN IN";
+        }
+      });
+    });
+
+    // --- DASHBOARD GAUGE LOGIC ---
     const circle = document.getElementById('progressCircle');
     const radius = circle.r.baseVal.value;
     const circumference = 2 * Math.PI * radius;
     circle.style.strokeDasharray = `${circumference} ${circumference}`;
 
-    // Real-Time Network Detection Function
-    function detectNetworkType() {
+    // Default Gauge position for 32 Mbps
+    const initialOffset = circumference - (32 / 100) * circumference;
+    circle.style.strokeDashoffset = initialOffset;
+
+    function checkNetworkType() {
       const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      const networkTag = document.getElementById('networkTag');
-      const tierDisplay = document.getElementById('tierDisplay');
+      const netTag = document.getElementById('networkTag');
+      const tierVal = document.getElementById('tierVal');
 
       if (conn && conn.effectiveType) {
         let type = conn.effectiveType.toUpperCase();
         if (type === '4G') {
-          networkTag.textContent = '4G LTE 📡';
-          networkTag.style.color = '#38bdf8';
-          tierDisplay.textContent = '4G LTE';
+          netTag.textContent = '4G LTE 📡';
+          netTag.style.color = '#38bdf8';
+          tierVal.textContent = '4G LTE';
         } else if (type === '5G') {
-          networkTag.textContent = '5G ULTRA FAST 🚀';
-          networkTag.style.color = '#00f2fe';
-          tierDisplay.textContent = '5G';
+          netTag.textContent = '5G ULTRA 🚀';
+          netTag.style.color = '#00f2fe';
+          tierVal.textContent = '5G';
         } else {
-          networkTag.textContent = type + ' NETWORK';
-          networkTag.style.color = '#facc15';
-          tierDisplay.textContent = type;
+          netTag.textContent = type;
+          tierVal.textContent = type;
         }
       } else {
-        // Default detection fallback
-        networkTag.textContent = '4G LTE 📡';
-        networkTag.style.color = '#38bdf8';
-        tierDisplay.textContent = '4G LTE';
+        netTag.textContent = '4G LTE 📡';
+        tierVal.textContent = '4G LTE';
       }
     }
 
-    // Run network check on load
-    detectNetworkType();
+    checkNetworkType();
 
     function setProgress(percent, isUpload = false) {
       const offset = circumference - (percent / 100) * circumference;
       circle.style.strokeDashoffset = offset;
-      circle.style.stroke = isUpload ? "url(#purple-gradient)" : "url(#cyan-gradient)";
+      circle.style.stroke = isUpload ? "#c084fc" : "#38bdf8";
     }
 
-    function startFullTest() {
+    function startTest() {
       const btn = document.getElementById('startBtn');
-      const speedDisplay = document.getElementById('speedDisplay');
-      const gaugeMode = document.getElementById('gaugeMode');
-      const dlDisplay = document.getElementById('dlDisplay');
-      const ulDisplay = document.getElementById('ulDisplay');
-      const pingDisplay = document.getElementById('pingDisplay');
-      const tierDisplay = document.getElementById('tierDisplay');
-      const networkTag = document.getElementById('networkTag');
+      const status = document.getElementById('gaugeStatus');
+      const netTag = document.getElementById('networkTag');
+      const tierVal = document.getElementById('tierVal');
 
       btn.disabled = true;
-      btn.style.opacity = "0.6";
+      btn.style.opacity = '0.6';
       btn.textContent = "TESTING...";
 
       document.querySelectorAll('.app-icon-item').forEach(el => el.classList.remove('active'));
 
       const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      let targetDL = conn && conn.downlink ? conn.downlink * 10 : Math.floor(Math.random() * 40) + 10;
-      let targetUL = (targetDL * (Math.random() * 0.3 + 0.2)).toFixed(1);
-      let ping = conn && conn.rtt ? conn.rtt : Math.floor(Math.random() * 15) + 12;
+      let ping = conn && conn.rtt ? conn.rtt : Math.floor(Math.random() * 10) + 12;
+      document.getElementById('pingVal').textContent = ping + " ms";
 
-      pingDisplay.textContent = ping + " ms";
+      let targetDL = (Math.random() * 50 + 25).toFixed(1);
+      let targetUL = (targetDL * 0.35).toFixed(1);
 
-      // Phase 1: Download Speed
-      gaugeMode.textContent = "TESTING DOWNLOAD...";
-      gaugeMode.style.color = "#00f2fe";
+      status.textContent = "TESTING DOWNLOAD";
       runAnimation(targetDL, false, (finalDL) => {
-        dlDisplay.textContent = finalDL + " Mbps";
-        
-        // Phase 2: Upload Speed
-        setTimeout(() => {
-          gaugeMode.textContent = "TESTING UPLOAD...";
-          gaugeMode.style.color = "#b877fe";
-          runAnimation(targetUL, true, (finalUL) => {
-            ulDisplay.textContent = finalUL + " Mbps";
+        document.getElementById('dlDisplay').textContent = finalDL;
 
-            gaugeMode.textContent = "TEST COMPLETE";
-            gaugeMode.style.color = "#64748b";
-            speedDisplay.textContent = finalDL;
+        setTimeout(() => {
+          status.textContent = "TESTING UPLOAD";
+          runAnimation(targetUL, true, (finalUL) => {
+            document.getElementById('ulDisplay').textContent = finalUL;
+
+            status.textContent = "TEST COMPLETE";
+            document.getElementById('speedDisplay').textContent = finalDL;
             setProgress(Math.min((finalDL / 100) * 100, 100), false);
 
-            // Dynamically set 4G / 5G based on Speed & Connection API
-            let dlVal = parseFloat(finalDL);
-            if (dlVal >= 40 && ping <= 20) {
-              networkTag.textContent = "5G ULTRA FAST 🚀";
-              networkTag.style.color = "#00f2fe";
-              tierDisplay.textContent = "5G";
+            if (parseFloat(finalDL) > 50) {
+              netTag.textContent = '5G ULTRA 🚀';
+              netTag.style.color = '#00f2fe';
+              tierVal.textContent = '5G';
             } else {
-              networkTag.textContent = "4G LTE 📡";
-              networkTag.style.color = "#38bdf8";
-              tierDisplay.textContent = "4G LTE";
+              netTag.textContent = '4G LTE 📡';
+              netTag.style.color = '#38bdf8';
+              tierVal.textContent = '4G LTE';
             }
 
-            // Activate Service Badges
-            if (dlVal >= 5) document.getElementById('iconWeb').classList.add('active');
-            if (dlVal >= 15 && ping <= 35) document.getElementById('iconGame').classList.add('active');
-            if (dlVal >= 10) document.getElementById('iconVideo').classList.add('active');
-            if (ping <= 50) document.getElementById('iconCall').classList.add('active');
+            if (parseFloat(finalDL) >= 10) document.getElementById('iconWeb').classList.add('active');
+            if (parseFloat(finalDL) >= 20 && ping <= 35) document.getElementById('iconGame').classList.add('active');
+            if (parseFloat(finalDL) >= 15) document.getElementById('iconVideo').classList.add('active');
+            if (ping <= 45) document.getElementById('iconCall').classList.add('active');
 
             btn.disabled = false;
-            btn.style.opacity = "1";
+            btn.style.opacity = '1';
             btn.textContent = "TEST AGAIN";
           });
-        }, 500);
+        }, 400);
       });
     }
 
     function runAnimation(targetSpeed, isUpload, onComplete) {
-      let duration = 1800;
+      let duration = 1600;
       let startTime = null;
 
       function animate(timestamp) {
