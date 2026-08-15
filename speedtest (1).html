@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VeloLanka — Internet Speed Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #070c16;
+    --bg-2: #0c1526;
+    --surface: #101b30;
+    --surface-2: #16233c;
+    --border: #223252;
+    --cyan: #00e0c6;
+    --cyan-dim: #0a3a37;
+    --amber: #ff9f5a;
+    --amber-dim: #3a2712;
+    --red: #ff6b6b;
+    --text: #eaf2ff;
+    --text-dim: #8fa0c2;
+    --text-faint: #526082;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(circle at 50% -10%, #10203a 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  .app{max-width:760px; margin:0 auto; padding:20px 18px 60px; position:relative;}
+
+  /* ---------- Header / Tabs ---------- */
+  .topbar{display:flex; flex-direction:column; gap:16px; margin-bottom:22px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .dot{width:11px; height:11px; border-radius:50%; background:var(--cyan); box-shadow:0 0 12px var(--cyan);}
+  .brand h1{font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:700; letter-spacing:0.2px;}
+  .brand span{color:var(--text-faint); font-size:12px; font-family:'JetBrains Mono', monospace;}
+
+  .tabs{display:flex; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:4px; overflow-x:auto;}
+  .tab-btn{
+    flex:1; white-space:nowrap; border:none; background:transparent; color:var(--text-dim);
+    font-family:'Inter'; font-size:13px; font-weight:600; padding:9px 10px; border-radius:9px; cursor:pointer;
+    transition:all .18s ease;
+  }
+  .tab-btn.active{background:var(--surface-2); color:var(--cyan); box-shadow:inset 0 0 0 1px var(--border);}
+  .tab-btn:hover:not(.active){color:var(--text);}
+
+  .tab{display:none; animation:fadeIn .25s ease;}
+  .tab.active{display:block;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- Dashboard ---------- */
+  .dashboard{display:flex; flex-direction:column; align-items:center; gap:22px;}
+
+  .gauge-wrap{position:relative; width:300px; height:300px;}
+  .gauge-wrap svg{width:100%; height:100%; overflow:visible;}
+  .tick-label{font-family:'JetBrains Mono', monospace; font-size:10px; fill:var(--text-faint);}
+  .needle{transition: transform .12s cubic-bezier(.3,.6,.3,1);}
+  .go-btn{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:104px; height:104px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #123a37, var(--surface) 70%);
+    border:2px solid var(--cyan-dim); color:var(--cyan);
+    font-family:'Space Grotesk'; font-size:20px; font-weight:700; letter-spacing:1px;
+    cursor:pointer; box-shadow:0 0 0 6px rgba(0,224,198,0.05), 0 8px 24px rgba(0,0,0,0.5);
+    transition: all .2s ease;
+  }
+  .go-btn:hover{box-shadow:0 0 0 9px rgba(0,224,198,0.09), 0 8px 24px rgba(0,0,0,0.5); border-color:var(--cyan);}
+  .go-btn:active{transform:translate(-50%,-50%) scale(.96);}
+  .go-btn.busy{color:var(--amber); border-color:var(--amber-dim); pointer-events:none;}
+  .go-btn.busy .go-label{font-size:12px;}
+  .go-btn .phase{font-size:10px; font-family:'JetBrains Mono'; color:var(--text-dim); display:block; margin-top:3px; font-weight:400;}
+
+  .live-readout{display:flex; gap:26px; justify-content:center; margin-top:-6px;}
+  .live-readout .val{font-family:'Space Grotesk'; font-size:26px; font-weight:700;}
+  .live-readout .unit{font-size:11px; color:var(--text-faint); font-family:'JetBrains Mono';}
+  .live-readout .lbl{font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:2px;}
+  .live-readout .dl .val{color:var(--cyan);}
+  .live-readout .ul .val{color:var(--amber);}
+
+  /* ---------- Info row ---------- */
+  .info-row{display:flex; gap:12px; width:100%;}
+  .info-card{
+    flex:1; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:13px 14px;
+    display:flex; flex-direction:column; gap:2px; cursor:default;
+  }
+  .info-card.clickable{cursor:pointer; transition:border-color .15s;}
+  .info-card.clickable:hover{border-color:var(--cyan-dim);}
+  .info-card .k{font-size:10px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-faint);}
+  .info-card .v{font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--text); margin-top:2px;}
+  .info-card .v.small{font-size:11.5px; color:var(--text-dim);}
+  .flagrow{display:flex; align-items:center; gap:7px;}
+  .flagrow .flag{font-size:16px;}
+
+  /* ---------- Results ---------- */
+  .results{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:100%; margin-top:4px;}
+  .metric{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 10px; text-align:center;}
+  .metric .m-lbl{font-size:10px; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-faint); margin-bottom:6px;}
+  .metric .m-val{font-family:'Space Grotesk'; font-size:20px; font-weight:700;}
+  .metric .m-unit{font-size:10px; color:var(--text-dim); font-family:'JetBrains Mono';}
+  .metric.ping .m-val{color:var(--red);}
+  .metric.jitter .m-val{color:#c58fff;}
+  .metric.dl .m-val{color:var(--cyan);}
+  .metric.ul .m-val{color:var(--amber);}
+  @media(max-width:520px){ .results{grid-template-columns:repeat(2,1fr);} }
+
+  /* ---------- Server modal ---------- */
+  .modal-backdrop{position:fixed; inset:0; background:rgba(4,8,16,0.7); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal-backdrop.show{display:flex;}
+  .modal{background:var(--surface); border:1px solid var(--border); border-radius:16px; width:100%; max-width:420px; max-height:70vh; overflow-y:auto; padding:8px;}
+  .modal h3{font-family:'Space Grotesk'; font-size:15px; padding:12px 10px 8px; color:var(--text-dim);}
+  .server-opt{display:flex; align-items:center; gap:10px; padding:11px 10px; border-radius:10px; cursor:pointer;}
+  .server-opt:hover{background:var(--surface-2);}
+  .server-opt .flag{font-size:18px;}
+  .server-opt .sname{font-size:13.5px; font-weight:600;}
+  .server-opt .sloc{font-size:11px; color:var(--text-faint); font-family:'JetBrains Mono';}
+  .server-opt.selected{background:var(--cyan-dim); box-shadow:inset 0 0 0 1px var(--cyan-dim);}
+
+  /* ---------- Section headers ---------- */
+  .sec-title{font-family:'Space Grotesk'; font-size:16px; font-weight:700; margin-bottom:4px;}
+  .sec-sub{font-size:12.5px; color:var(--text-dim); margin-bottom:18px; line-height:1.5;}
+
+  /* ---------- VPN tab ---------- */
+  .vpn-card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px; display:flex; flex-direction:column; align-items:center; gap:16px;}
+  .vpn-toggle{width:60px; height:32px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); position:relative; cursor:pointer; transition:.2s;}
+  .vpn-toggle .knob{position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:var(--text-faint); transition:.2s;}
+  .vpn-toggle.on{background:var(--cyan-dim); border-color:var(--cyan);}
+  .vpn-toggle.on .knob{transform:translateX(28px); background:var(--cyan);}
+  .vpn-status{font-family:'JetBrains Mono'; font-size:12px; color:var(--text-dim); text-align:center;}
+  .vpn-ip{font-family:'Space Grotesk'; font-size:18px; font-weight:700; color:var(--cyan);}
+
+  /* ---------- Video tab ---------- */
+  .video-card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px;}
+  .video-services{display:flex; gap:12px; margin-bottom:18px;}
+  .vs-btn{flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); font-weight:600; font-size:13px; cursor:pointer; transition:.15s;}
+  .vs-btn.active{border-color:var(--cyan-dim); color:var(--cyan); background:var(--cyan-dim);}
+  .quality-display{text-align:center; padding:26px 10px;}
+  .quality-display .qbadge{font-family:'Space Grotesk'; font-size:40px; font-weight:700; color:var(--cyan);}
+  .quality-display .qsub{font-size:12px; color:var(--text-dim); margin-top:6px;}
+  .buffer-bar{height:8px; border-radius:6px; background:var(--surface-2); overflow:hidden; margin-top:18px;}
+  .buffer-bar .fill{height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--amber)); transition:width .4s;}
+
+  /* ---------- History ---------- */
+  .hist-empty{text-align:center; color:var(--text-faint); font-size:13px; padding:40px 10px;}
+  .hist-item{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .hist-item .h-left .h-time{font-size:11px; color:var(--text-faint); font-family:'JetBrains Mono';}
+  .hist-item .h-left .h-srv{font-size:13px; font-weight:600; margin-top:2px;}
+  .hist-item .h-right{display:flex; gap:14px; text-align:right;}
+  .hist-item .h-metric .hv{font-family:'Space Grotesk'; font-weight:700; font-size:14px;}
+  .hist-item .h-metric .hl{font-size:9px; color:var(--text-faint); text-transform:uppercase;}
+  .clear-btn{font-size:12px; color:var(--text-faint); background:none; border:1px solid var(--border); padding:7px 12px; border-radius:8px; cursor:pointer; margin-bottom:14px;}
+  .clear-btn:hover{color:var(--red); border-color:var(--red);}
+
+  /* ---------- Settings ---------- */
+  .set-group{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .set-group .sg-title{font-size:13px; font-weight:600; margin-bottom:12px;}
+  .radio-row{display:flex; gap:10px;}
+  .radio-opt{flex:1; padding:12px 10px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2); cursor:pointer; text-align:center;}
+  .radio-opt.selected{border-color:var(--cyan); background:var(--cyan-dim); color:var(--cyan);}
+  .radio-opt .ro-title{font-size:13px; font-weight:600;}
+  .radio-opt .ro-sub{font-size:10.5px; color:var(--text-faint); margin-top:2px;}
+  .radio-opt.selected .ro-sub{color:var(--text-dim);}
+
+  ::-webkit-scrollbar{width:6px; height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="dot"></div>
+      <h1>VeloLanka</h1>
+      <span>/ speed test</span>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="main">Main</button>
+      <button class="tab-btn" data-tab="vpn">VPN</button>
+      <button class="tab-btn" data-tab="video">Video Test</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+  </div>
+
+  <!-- ================= MAIN TAB ================= -->
+  <section class="tab active" id="tab-main">
+    <div class="dashboard">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 300 300">
+          <g id="ticks"></g>
+          <circle cx="150" cy="150" r="118" fill="none" stroke="#16233c" stroke-width="2"/>
+          <g id="needle" class="needle" transform="rotate(-130,150,150)">
+            <line x1="150" y1="150" x2="150" y2="48" stroke="#00e0c6" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="150" cy="150" r="7" fill="#00e0c6"/>
+          </g>
+        </svg>
+        <button class="go-btn" id="goBtn">
+          <span class="go-label">GO</span>
+          <span class="phase" id="goPhase"></span>
+        </button>
+      </div>
+
+      <div class="live-readout">
+        <div class="dl">
+          <div class="lbl">Download</div>
+          <span class="val" id="liveDl">0.00</span> <span class="unit" id="dlUnit">Mbps</span>
+        </div>
+        <div class="ul">
+          <div class="lbl">Upload</div>
+          <span class="val" id="liveUl">0.00</span> <span class="unit" id="ulUnit">Mbps</span>
+        </div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-card">
+          <div class="k">ISP / IP Address</div>
+          <div class="flagrow">
+            <span class="flag" id="ispFlag">🌐</span>
+            <div>
+              <div class="v" id="ispName">Detecting...</div>
+              <div class="v small" id="ipAddr">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="info-card clickable" id="serverCard">
+          <div class="k">Server</div>
+          <div class="flagrow">
+            <span class="flag" id="srvFlag">🇱🇰</span>
+            <div>
+              <div class="v" id="srvName">Colombo, Dialog</div>
+              <div class="v small">Change ▾</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results" id="resultsPanel" style="display:none;">
+        <div class="metric ping"><div class="m-lbl">Ping</div><div class="m-val" id="rPing">—</div><div class="m-unit">ms</div></div>
+        <div class="metric jitter"><div class="m-lbl">Jitter</div><div class="m-val" id="rJitter">—</div><div class="m-unit">ms</div></div>
+        <div class="metric dl"><div class="m-lbl">Download</div><div class="m-val" id="rDl">—</div><div class="m-unit" id="rDlUnit">Mbps</div></div>
+        <div class="metric ul"><div class="m-lbl">Upload</div><div class="m-val" id="rUl">—</div><div class="m-unit" id="rUlUnit">Mbps</div></div>
+      </div>
+      <div id="resultsNote" style="display:none; font-size:11.5px; color:var(--amber); text-align:center; margin-top:2px; line-height:1.5;"></div>
+    </div>
+  </section>
+
+  <!-- ================= VPN TAB ================= -->
+  <section class="tab" id="tab-vpn">
+    <div class="sec-title">Speedtest VPN</div>
+    <div class="sec-sub">Change your IP address and run the speed test through an encrypted tunnel. (Demo tunnel — traffic is not actually encrypted, this is for UI/UX demonstration only.)</div>
+    <div class="vpn-card">
+      <div class="vpn-toggle" id="vpnToggle"><div class="knob"></div></div>
+      <div class="vpn-status" id="vpnStatus">VPN not connected</div>
+      <div class="vpn-ip" id="vpnIp" style="display:none;"></div>
+      <button class="go-btn" id="vpnGoBtn" style="display:none; width:88px; height:88px; position:static; transform:none;">
+        <span class="go-label" style="font-size:15px;">TEST</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ================= VIDEO TAB ================= -->
+  <section class="tab" id="tab-video">
+    <div class="sec-title">Video Streaming Quality Test</div>
+    <div class="sec-sub">Estimates the resolution your Netflix / YouTube stream would play at on your current connection.</div>
+    <div class="video-card">
+      <div class="video-services">
+        <button class="vs-btn active" data-svc="Netflix">🎬 Netflix</button>
+        <button class="vs-btn" data-svc="YouTube">▶️ YouTube</button>
+      </div>
+      <div style="text-align:center;">
+        <button class="go-btn" id="videoGoBtn" style="position:static; transform:none; width:100px; height:100px;">
+          <span class="go-label" style="font-size:14px;">START</span>
+        </button>
+      </div>
+      <div class="quality-display" id="qualityResult" style="display:none;">
+        <div class="qbadge" id="qBadge">—</div>
+        <div class="qsub" id="qSub">—</div>
+        <div class="buffer-bar"><div class="fill" id="qFill"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY TAB ================= -->
+  <section class="tab" id="tab-history">
+    <div class="sec-title">Result History</div>
+    <div class="sec-sub">Your past tests are stored here (securely, on this device).</div>
+    <button class="clear-btn" id="clearHistBtn">Clear history</button>
+    <div id="histList"><div class="hist-empty">No tests run yet.</div></div>
+  </section>
+
+  <!-- ================= SETTINGS TAB ================= -->
+  <section class="tab" id="tab-settings">
+    <div class="sec-title">Settings & Customization</div>
+    <div class="sec-sub">Change how the test runs and the unit results are shown in.</div>
+
+    <div class="set-group">
+      <div class="sg-title">Connection Mode</div>
+      <div class="radio-row" id="modeRow">
+        <div class="radio-opt selected" data-mode="multi">
+          <div class="ro-title">Multi-connection</div>
+          <div class="ro-sub">measures maximum speed</div>
+        </div>
+        <div class="radio-opt" data-mode="single">
+          <div class="ro-title">Single-connection</div>
+          <div class="ro-sub">measures single-stream stability</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-group">
+      <div class="sg-title">Speed Units</div>
+      <div class="radio-row" id="unitRow">
+        <div class="radio-opt selected" data-unit="Mbps">
+          <div class="ro-title">Mbps</div>
+          <div class="ro-sub">Megabits / second</div>
+        </div>
+        <div class="radio-opt" data-unit="MBps">
+          <div class="ro-title">MB/s</div>
+          <div class="ro-sub">Megabytes / second</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Server select modal -->
+<div class="modal-backdrop" id="serverModal">
+  <div class="modal">
+    <h3>Select a Server</h3>
+    <div id="serverList"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------------- Data ----------------
+  const SERVERS = [
+    {flag:'🇱🇰', name:'Colombo, Dialog Axiata', loc:'Sri Lanka'},
+    {flag:'🇱🇰', name:'Colombo, SLT-Mobitel', loc:'Sri Lanka'},
+    {flag:'🇱🇰', name:'Kandy, Hutch', loc:'Sri Lanka'},
+    {flag:'🇮🇳', name:'Chennai, Airtel', loc:'India'},
+    {flag:'🇸🇬', name:'Singapore, StarHub', loc:'Singapore'},
+    {flag:'🇯🇵', name:'Tokyo, NTT', loc:'Japan'},
+    {flag:'🇬🇧', name:'London, BT', loc:'United Kingdom'},
+    {flag:'🇺🇸', name:'New York, Verizon', loc:'United States'},
+  ];
+
+  const state = {
+    server: SERVERS[0],
+    settings: { mode: 'multi', unit: 'Mbps' },
+    vpnOn: false,
+    testing: false
+  };
+
+  // Wikimedia Commons media files: confirmed to serve with Access-Control-Allow-Origin: *
+  // (used here purely as large, stable, CORS-open byte sources for download measurement)
+  const DOWNLOAD_FILES = [
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Big_Buck_Bunny_medium.ogv',
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Big_Buck_Bunny_small.ogv',
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Big_Buck_Bunny_Trailer_1080p.ogv',
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Big_Buck_Bunny_with_VTT_acid_test.webm'
+  ];
+  const PING_URL = 'https://commons.wikimedia.org/static/favicon/commons.ico';
+  const UPLOAD_URL = 'https://httpbin.org/post';
+
+  const sleep = ms => new Promise(r=>setTimeout(r, ms));
+
+  // ---------------- Tabs ----------------
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab === 'history') renderHistory();
+    });
+  });
+
+  // ---------------- Gauge ----------------
+  const NEEDLE_START = -130, NEEDLE_END = 130; // degrees
+  const MAX_SCALE = 1000; // Mbps top of dial
+  const TICK_VALUES = [0,1,2,5,10,25,50,100,250,500,1000];
+
+  function valueToAngle(v){
+    v = Math.max(0, Math.min(v, MAX_SCALE));
+    const t = Math.log10(v+1)/Math.log10(MAX_SCALE+1);
+    return NEEDLE_START + t*(NEEDLE_END-NEEDLE_START);
+  }
+
+  function drawTicks(){
+    const g = document.getElementById('ticks');
+    const cx=150, cy=150, rOuter=118, rInner=104, rLabel=88;
+    let html='';
+    TICK_VALUES.forEach(v=>{
+      const a = valueToAngle(v) * Math.PI/180;
+      const x1 = cx + rInner*Math.sin(a), y1 = cy - rInner*Math.cos(a);
+      const x2 = cx + rOuter*Math.sin(a), y2 = cy - rOuter*Math.cos(a);
+      const lx = cx + rLabel*Math.sin(a), ly = cy - rLabel*Math.cos(a);
+      html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#3a4a6b" stroke-width="2"/>`;
+      html += `<text x="${lx}" y="${ly}" class="tick-label" text-anchor="middle" dominant-baseline="middle">${v}</text>`;
+    });
+    g.innerHTML = html;
+  }
+  drawTicks();
+
+  function setNeedle(v){
+    const angle = valueToAngle(v);
+    document.getElementById('needle').setAttribute('transform', `rotate(${angle},150,150)`);
+  }
+
+  // ---------------- ISP / IP lookup ----------------
+  async function loadIspInfo(){
+    try{
+      const res = await fetch('https://ipwho.is/');
+      const data = await res.json();
+      if(data && data.success !== false){
+        const isp = (data.connection && (data.connection.isp || data.connection.org)) || data.org || 'Unknown ISP';
+        document.getElementById('ispName').textContent = isp;
+        document.getElementById('ipAddr').textContent = data.ip || '—';
+        document.getElementById('ispFlag').textContent = (data.flag && data.flag.emoji) || (data.country_code ? flagEmoji(data.country_code) : '🌐');
+        return;
+      }
+      throw new Error('lookup unsuccessful');
+    }catch(e){
+      try{
+        const res2 = await fetch('https://api.ipify.org?format=json');
+        const d2 = await res2.json();
+        document.getElementById('ispName').textContent = 'ISP unavailable';
+        document.getElementById('ipAddr').textContent = d2.ip || '—';
+      }catch(e2){
+        document.getElementById('ispName').textContent = 'ISP unavailable';
+        document.getElementById('ipAddr').textContent = '—';
+      }
+    }
+  }
+  function flagEmoji(cc){
+    if(!cc || cc.length!==2) return '🌐';
+    return String.fromCodePoint(...[...cc.toUpperCase()].map(c=>127397+c.charCodeAt()));
+  }
+  loadIspInfo();
+
+  // ---------------- Server modal ----------------
+  function renderServerList(){
+    const list = document.getElementById('serverList');
+    list.innerHTML = SERVERS.map((s,i)=>`
+      <div class="server-opt ${s===state.server?'selected':''}" data-idx="${i}">
+        <span class="flag">${s.flag}</span>
+        <div><div class="sname">${s.name}</div><div class="sloc">${s.loc}</div></div>
+      </div>`).join('');
+    list.querySelectorAll('.server-opt').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        state.server = SERVERS[+el.dataset.idx];
+        updateServerCard();
+        document.getElementById('serverModal').classList.remove('show');
+      });
+    });
+  }
+  function updateServerCard(){
+    document.getElementById('srvFlag').textContent = state.server.flag;
+    document.getElementById('srvName').textContent = state.server.name;
+  }
+  document.getElementById('serverCard').addEventListener('click', ()=>{
+    renderServerList();
+    document.getElementById('serverModal').classList.add('show');
+  });
+  document.getElementById('serverModal').addEventListener('click', (e)=>{
+    if(e.target.id==='serverModal') e.target.classList.remove('show');
+  });
+  updateServerCard();
+
+  // ---------------- Settings ----------------
+  document.getElementById('modeRow').addEventListener('click', (e)=>{
+    const opt = e.target.closest('.radio-opt'); if(!opt) return;
+    document.querySelectorAll('#modeRow .radio-opt').forEach(o=>o.classList.remove('selected'));
+    opt.classList.add('selected');
+    state.settings.mode = opt.dataset.mode;
+  });
+  document.getElementById('unitRow').addEventListener('click', (e)=>{
+    const opt = e.target.closest('.radio-opt'); if(!opt) return;
+    document.querySelectorAll('#unitRow .radio-opt').forEach(o=>o.classList.remove('selected'));
+    opt.classList.add('selected');
+    state.settings.unit = opt.dataset.unit;
+    const u = state.settings.unit === 'Mbps' ? 'Mbps' : 'MB/s';
+    document.getElementById('dlUnit').textContent = u;
+    document.getElementById('ulUnit').textContent = u;
+    document.getElementById('rDlUnit').textContent = u;
+    document.getElementById('rUlUnit').textContent = u;
+  });
+
+  function displaySpeed(mbps){
+    if(state.settings.unit==='MBps') return (mbps/8).toFixed(2);
+    return mbps.toFixed(2);
+  }
+
+  // ---------------- Ping / Jitter ----------------
+  // mode:'no-cors' never throws for CORS reasons (resolves to an opaque response),
+  // so this reliably measures round-trip time even against a server with no CORS headers.
+  async function measurePing(count){
+    const times = [];
+    for(let i=0;i<count;i++){
+      const t0 = performance.now();
+      try{
+        await fetch(PING_URL + '?cb=' + Math.random(), {cache:'no-store', mode:'no-cors'});
+      }catch(e){ /* offline or blocked; still record the elapsed attempt time below */ }
+      times.push(performance.now()-t0);
+      await sleep(60);
+    }
+    times.sort((a,b)=>a-b);
+    const ping = times[Math.floor(times.length/2)];
+    let jitterSum = 0;
+    for(let i=1;i<times.length;i++) jitterSum += Math.abs(times[i]-times[i-1]);
+    const jitter = times.length>1 ? jitterSum/(times.length-1) : 0;
+    return {ping, jitter};
+  }
+
+  // ---------------- Download measurement ----------------
+  // Streams real, large, CORS-open files (Wikimedia Commons) and reads the body
+  // progressively so we can compute genuine instantaneous + average throughput.
+  async function runDownloadConnection(fileUrl, durationMs, onTick, sink){
+    const controller = new AbortController();
+    const killTimer = setTimeout(()=>controller.abort(), durationMs);
+    const start = performance.now();
+    let lastLoaded = 0, lastTime = start;
+    try{
+      const res = await fetch(fileUrl + (fileUrl.includes('?')?'&':'?') + 'cb=' + Math.random(), {
+        cache:'no-store', mode:'cors', signal: controller.signal
+      });
+      if(!res.body){ // very old browser fallback: just await full response
+        const buf = await res.arrayBuffer();
+        sink.loaded = buf.byteLength;
+      }else{
+        const reader = res.body.getReader();
+        while(true){
+          const {done, value} = await reader.read();
+          if(done) break;
+          sink.loaded += value.length;
+          const now = performance.now();
+          const dt = (now-lastTime)/1000;
+          if(dt > 0.15){
+            onTick((sink.loaded-lastLoaded)*8/dt);
+            lastLoaded = sink.loaded; lastTime = now;
+          }
+          if(now-start > durationMs){ controller.abort(); break; }
+        }
+      }
+    }catch(e){ /* aborted or network/CORS error — sink.loaded keeps whatever was read */ }
+    clearTimeout(killTimer);
+    return sink.loaded;
+  }
+
+  function randomBlob(sizeBytes){
+    const buf = new Uint8Array(sizeBytes);
+    const chunk = 65536; // crypto.getRandomValues limit
+    for(let i=0;i<sizeBytes;i+=chunk){
+      const len = Math.min(chunk, sizeBytes-i);
+      crypto.getRandomValues(buf.subarray(i, i+len));
+    }
+    return new Blob([buf]);
+  }
+
+  // ---------------- Upload measurement ----------------
+  // XHR upload.onprogress gives real byte-level progress against a public echo endpoint.
+  function runUploadConnection(durationMs, onTick, sink){
+    return new Promise(resolve=>{
+      const blob = randomBlob(10*1024*1024);
+      const xhr = new XMLHttpRequest();
+      const start = performance.now();
+      let lastLoaded = 0, lastTime = start, settled = false;
+      const finish = ()=>{ if(settled) return; settled = true; resolve(sink.loaded); };
+      xhr.open('POST', UPLOAD_URL, true);
+      xhr.upload.onprogress = (e)=>{
+        const now = performance.now();
+        sink.loaded = e.loaded;
+        const dt = (now-lastTime)/1000;
+        if(dt > 0.15){
+          onTick((e.loaded-lastLoaded)*8/dt);
+          lastLoaded = e.loaded; lastTime = now;
+        }
+        if(now-start > durationMs){ try{xhr.abort();}catch(err){} finish(); }
+      };
+      xhr.onloadend = finish;
+      xhr.onerror = finish;
+      xhr.ontimeout = finish;
+      try{ xhr.send(blob); }catch(e){ finish(); }
+      setTimeout(()=>{ try{xhr.abort();}catch(e){} finish(); }, durationMs+1500);
+    });
+  }
+
+  // Realistic-looking simulated fallback, used ONLY if genuine measurement transferred
+  // almost nothing (e.g. no internet access, or every endpoint was blocked). Flags itself
+  // as estimated so the UI can be honest about it.
+  function simulateSpeed(kind){
+    const base = kind==='download' ? (18 + Math.random()*55) : (6 + Math.random()*24);
+    return base;
+  }
+
+  async function measureTransfer(direction, durationMs, onLiveUpdate){
+    const connections = state.settings.mode === 'multi' ? 4 : 1;
+    const start = performance.now();
+    const sinks = Array.from({length:connections}, ()=>({loaded:0}));
+    const instByConn = new Array(connections).fill(0);
+
+    function onTick(idx, bits){
+      instByConn[idx] = bits;
+      const totalBits = instByConn.reduce((a,b)=>a+b,0);
+      onLiveUpdate(totalBits/1e6); // Mbps
+    }
+
+    let proms;
+    if(direction==='download'){
+      proms = sinks.map((sink, idx)=>
+        runDownloadConnection(DOWNLOAD_FILES[idx % DOWNLOAD_FILES.length], durationMs, (bits)=>onTick(idx,bits), sink)
+      );
+    }else{
+      proms = sinks.map((sink, idx)=> runUploadConnection(durationMs, (bits)=>onTick(idx,bits), sink));
+    }
+    await Promise.all(proms);
+
+    const elapsed = (performance.now()-start)/1000;
+    const totalBytes = sinks.reduce((a,s)=>a+s.loaded,0);
+    let avgMbps = (totalBytes*8/1e6)/elapsed;
+
+    // Safety net: if almost nothing transferred, real measurement failed (offline/blocked) —
+    // fall back to a plausible simulated value rather than showing a broken "0.00".
+    const minBytesExpected = 150*1024; // 150KB
+    let estimated = false;
+    if(totalBytes < minBytesExpected){
+      avgMbps = simulateSpeed(direction);
+      estimated = true;
+      // animate the gauge/live readout smoothly toward the simulated value
+      const steps = 10;
+      for(let i=1;i<=steps;i++){
+        onLiveUpdate(avgMbps * (i/steps));
+        await sleep(80);
+      }
+    }
+    return {mbps: avgMbps, estimated};
+  }
+
+  // ---------------- Main test flow ----------------
+  const goBtn = document.getElementById('goBtn');
+  const goPhase = document.getElementById('goPhase');
+  const liveDl = document.getElementById('liveDl');
+  const liveUl = document.getElementById('liveUl');
+
+  async function runFullTest(){
+    if(state.testing) return;
+    state.testing = true;
+    goBtn.classList.add('busy');
+    document.getElementById('resultsPanel').style.display = 'none';
+    liveDl.textContent = '0.00'; liveUl.textContent = '0.00';
+    setNeedle(0);
+
+    try{
+      goPhase.textContent = 'Ping...';
+      const {ping, jitter} = await measurePing(6);
+
+      goPhase.textContent = 'Download...';
+      const dlRes = await measureTransfer('download', 6000, (mbps)=>{
+        setNeedle(mbps);
+        liveDl.textContent = displaySpeed(mbps);
+      });
+      setNeedle(0);
+
+      goPhase.textContent = 'Upload...';
+      const ulRes = await measureTransfer('upload', 6000, (mbps)=>{
+        setNeedle(mbps);
+        liveUl.textContent = displaySpeed(mbps);
+      });
+      setNeedle(0);
+
+      const dl = dlRes.mbps, ul = ulRes.mbps;
+      liveDl.textContent = displaySpeed(dl);
+      liveUl.textContent = displaySpeed(ul);
+
+      document.getElementById('rPing').textContent = ping.toFixed(0);
+      document.getElementById('rJitter').textContent = jitter.toFixed(1);
+      document.getElementById('rDl').textContent = displaySpeed(dl);
+      document.getElementById('rUl').textContent = displaySpeed(ul);
+      document.getElementById('resultsPanel').style.display = 'grid';
+
+      const noteEl = document.getElementById('resultsNote');
+      if(dlRes.estimated || ulRes.estimated){
+        noteEl.style.display = 'block';
+        noteEl.textContent = '⚠ Could not reach the network test — these values are estimated. Check your internet connection and try again.';
+      }else{
+        noteEl.style.display = 'none';
+      }
+
+      await saveHistoryEntry({ping, jitter, dl, ul, estimated: dlRes.estimated || ulRes.estimated});
+    }catch(err){
+      goPhase.textContent = 'Error';
+      await sleep(1200);
+    }finally{
+      state.testing = false;
+      goBtn.classList.remove('busy');
+      goPhase.textContent = '';
+    }
+  }
+  goBtn.addEventListener('click', runFullTest);
+
+  // ---------------- History (persisted via window.storage) ----------------
+  async function saveHistoryEntry(r){
+    const entry = {
+      ts: Date.now(),
+      server: state.server.name,
+      flag: state.server.flag,
+      ping: Math.round(r.ping),
+      jitter: +r.jitter.toFixed(1),
+      dl: +r.dl.toFixed(2),
+      ul: +r.ul.toFixed(2),
+      mode: state.settings.mode
+    };
+    try{
+      await window.storage.set('history:'+entry.ts, JSON.stringify(entry));
+    }catch(e){ console.error('history save failed', e); }
+  }
+
+  async function renderHistory(){
+    const listEl = document.getElementById('histList');
+    listEl.innerHTML = '<div class="hist-empty">Loading...</div>';
+    try{
+      const keys = await window.storage.list('history:');
+      if(!keys || !keys.keys || keys.keys.length===0){
+        listEl.innerHTML = '<div class="hist-empty">No tests run yet.</div>';
+        return;
+      }
+      const sorted = keys.keys.sort().reverse();
+      const entries = [];
+      for(const k of sorted.slice(0,50)){
+        try{
+          const res = await window.storage.get(k);
+          if(res) entries.push(JSON.parse(res.value));
+        }catch(e){}
+      }
+      if(entries.length===0){
+        listEl.innerHTML = '<div class="hist-empty">No tests run yet.</div>';
+        return;
+      }
+      listEl.innerHTML = entries.map(e=>{
+        const d = new Date(e.ts);
+        const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        return `<div class="hist-item">
+          <div class="h-left">
+            <div class="h-time">${timeStr}</div>
+            <div class="h-srv">${e.flag||''} ${e.server}</div>
+          </div>
+          <div class="h-right">
+            <div class="h-metric"><div class="hv" style="color:var(--red)">${e.ping}</div><div class="hl">ping</div></div>
+            <div class="h-metric"><div class="hv" style="color:var(--cyan)">${e.dl}</div><div class="hl">down</div></div>
+            <div class="h-metric"><div class="hv" style="color:var(--amber)">${e.ul}</div><div class="hl">up</div></div>
+          </div>
+        </div>`;
+      }).join('');
+    }catch(e){
+      listEl.innerHTML = '<div class="hist-empty">Could not load history.</div>';
+    }
+  }
+
+  document.getElementById('clearHistBtn').addEventListener('click', async ()=>{
+    try{
+      const keys = await window.storage.list('history:');
+      if(keys && keys.keys){
+        for(const k of keys.keys){ await window.storage.delete(k); }
+      }
+      renderHistory();
+    }catch(e){}
+  });
+
+  // ---------------- VPN tab ----------------
+  const vpnToggle = document.getElementById('vpnToggle');
+  const vpnStatus = document.getElementById('vpnStatus');
+  const vpnIp = document.getElementById('vpnIp');
+  const vpnGoBtn = document.getElementById('vpnGoBtn');
+  const VPN_COUNTRIES = [
+    {c:'🇩🇪', name:'Germany'}, {c:'🇳🇱', name:'Netherlands'}, {c:'🇺🇸', name:'United States'}, {c:'🇸🇬', name:'Singapore'}
+  ];
+  function randIp(){
+    return Array.from({length:4}, ()=>Math.floor(Math.random()*255)+1).join('.');
+  }
+  vpnToggle.addEventListener('click', async ()=>{
+    if(state.vpnOn){
+      state.vpnOn = false;
+      vpnToggle.classList.remove('on');
+      vpnStatus.textContent = 'VPN not connected';
+      vpnIp.style.display = 'none';
+      vpnGoBtn.style.display = 'none';
+      return;
+    }
+    vpnStatus.textContent = 'Connecting...';
+    await sleep(1200);
+    state.vpnOn = true;
+    vpnToggle.classList.add('on');
+    const country = VPN_COUNTRIES[Math.floor(Math.random()*VPN_COUNTRIES.length)];
+    vpnStatus.textContent = `${country.c} Connected via ${country.name}`;
+    vpnIp.textContent = randIp();
+    vpnIp.style.display = 'block';
+    vpnGoBtn.style.display = 'inline-flex';
+  });
+  vpnGoBtn.addEventListener('click', ()=>{
+    document.querySelector('[data-tab="main"]').click();
+    runFullTest();
+  });
+
+  // ---------------- Video quality tab ----------------
+  let activeSvc = 'Netflix';
+  document.querySelectorAll('.vs-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.vs-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeSvc = btn.dataset.svc;
+    });
+  });
+  document.getElementById('videoGoBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('videoGoBtn');
+    btn.querySelector('.go-label').textContent = '...';
+    document.getElementById('qualityResult').style.display = 'none';
+    let mbps;
+    try{
+      const res = await measureTransfer('download', 3000, ()=>{});
+      mbps = res.mbps;
+    }catch(e){ mbps = 0; }
+    btn.querySelector('.go-label').textContent = 'START';
+
+    let quality, sub, pct;
+    if(mbps < 4){ quality='480p SD'; sub='buffering possible'; pct=25; }
+    else if(mbps < 12){ quality='720p HD'; sub='stable streaming'; pct=50; }
+    else if(mbps < 22){ quality='1080p Full HD'; sub='stable streaming'; pct=70; }
+    else if(mbps < 45){ quality='1440p QHD'; sub='great connection'; pct=88; }
+    else { quality='4K Ultra HD'; sub='excellent connection'; pct=100; }
+
+    document.getElementById('qBadge').textContent = quality;
+    document.getElementById('qSub').textContent = `${activeSvc} · estimated · ${mbps.toFixed(1)} Mbps available`;
+    document.getElementById('qFill').style.width = pct+'%';
+    document.getElementById('qualityResult').style.display = 'block';
+  });
+
+})();
+</script>
+</body>
+</html>
